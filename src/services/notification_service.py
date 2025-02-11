@@ -82,16 +82,18 @@ class NotificationService:
     @staticmethod
     def notify_order_status_update(order_id: str, status: str, additional_data: dict = None):
         """Notify relevant parties about order status update"""
-        data = {
+        base_data = {
             'type': 'order_status_update',
             'order_id': order_id,
             'status': status,
-            'timestamp': datetime.utcnow().isoformat(),
-            **additional_data if additional_data else {}
+            'timestamp': datetime.utcnow().isoformat()
         }
         
+        if additional_data:
+            base_data.update(additional_data)
+        
         # Emit to order-specific room
-        emit('order_update', data, room=f"order_{order_id}")
+        emit('order_update', base_data, room=f"order_{order_id}")
 
     @staticmethod
     def notify_new_order(restaurant_id: str, order_data: dict):
