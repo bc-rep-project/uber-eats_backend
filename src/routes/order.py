@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models.order import Order, OrderStatus, PaymentStatus
-from middleware.auth import require_auth
+from middleware.auth_middleware import require_auth
 from config.database import db
 from bson import ObjectId
 from datetime import datetime
