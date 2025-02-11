@@ -3,11 +3,16 @@ from typing import List, Optional
 from models.order import Order, OrderStatus, PaymentStatus
 from models.restaurant import Restaurant
 from config.database import db
+import paypalrestsdk
+from config.paypal import paypal_keys
 from bson import ObjectId
-import stripe
-from config.stripe import stripe_keys
 
-stripe.api_key = stripe_keys['secret_key']
+# Configure PayPal SDK
+paypalrestsdk.configure({
+    "mode": paypal_keys['mode'],  # sandbox or live
+    "client_id": paypal_keys['client_id'],
+    "client_secret": paypal_keys['client_secret']
+})
 
 class OrderService:
     @staticmethod
@@ -93,17 +98,32 @@ class OrderService:
         # Process payment if not cash
         if order_data['payment_method'] != 'cash':
             try:
-                payment_intent = stripe.PaymentIntent.create(
-                    amount=int(payment_info['total'] * 100),  # Convert to cents
-                    currency='usd',
-                    metadata={
-                        'order_id': str(order.id),
-                        'user_id': user_id,
-                        'restaurant_id': order_data['restaurant_id']
+                # Create PayPal payment
+                payment = paypalrestsdk.Payment({
+                    "intent": "sale",
+                    "payer": {
+                        "payment_method": "paypal"
+                    },
+                    "transactions": [{
+                        "amount": {
+                            "total": str(payment_info['total']),
+                            "currency": "USD"
+                        },
+                        "custom": str(order.id),  # Store order ID for webhook
+                        "description": f"Order from {restaurant['name']}"
+                    }],
+                    "redirect_urls": {
+                        "return_url": "http://localhost:3000/order/success",
+                        "cancel_url": "http://localhost:3000/order/cancel"
                     }
-                )
-                order.payment_info.transaction_id = payment_intent.id
-            except stripe.error.StripeError as e:
+                })
+
+                if payment.create():
+                    order.payment_info.transaction_id = payment.id
+                else:
+                    raise ValueError(payment.error)
+                    
+            except Exception as e:
                 raise ValueError(f"Payment processing failed: {str(e)}")
         
         # Save order to database
@@ -226,16 +246,25 @@ class OrderService:
         # Process refund if payment was completed
         if order['payment_info']['status'] == PaymentStatus.COMPLETED.value:
             try:
-                stripe.Refund.create(
-                    payment_intent=order['payment_info']['transaction_id']
-                )
+                # Create PayPal refund
+                sale = paypalrestsdk.Sale.find(order['payment_info']['transaction_id'])
+                refund = sale.refund({
+                    "amount": {
+                        "total": str(order['payment_info']['total']),
+                        "currency": "USD"
+                    }
+                })
                 
-                # Update payment status
-                db.get_db().orders.update_one(
-                    {'_id': ObjectId(order_id)},
-                    {'$set': {'payment_info.status': PaymentStatus.REFUNDED.value}}
-                )
-            except stripe.error.StripeError as e:
+                if refund.success():
+                    # Update payment status
+                    db.get_db().orders.update_one(
+                        {'_id': ObjectId(order_id)},
+                        {'$set': {'payment_info.status': PaymentStatus.REFUNDED.value}}
+                    )
+                else:
+                    raise ValueError(refund.error)
+                    
+            except Exception as e:
                 raise ValueError(f"Refund failed: {str(e)}")
         
         # Update order status

@@ -9,7 +9,7 @@ pytest==7.4.2
 black==23.7.0
 flake8==6.1.0
 pydantic==2.5.2
-stripe==7.6.0
+paypal-rest-sdk==1.13.1
 flask-socketio==5.3.6
 python-engineio==4.8.0
 python-socketio==5.10.0
