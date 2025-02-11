@@ -1,8 +1,6 @@
 from flask import Blueprint, request, jsonify
-import hmac
-import hashlib
-import base64
-from config.paypal import paypal_keys
+from paypalcheckoutsdk.core import PayPalHttpClient
+from config.paypal import get_paypal_client, paypal_keys
 from services.order_service import OrderService
 from models.order import PaymentStatus
 
@@ -20,18 +18,22 @@ def paypal_webhook():
     
     # Verify webhook signature
     try:
-        # In production, implement full signature verification
-        # For now, just verify webhook ID
-        if not webhook_id:
-            return jsonify({'error': 'Invalid webhook configuration'}), 400
-            
+        # Get PayPal client
+        client = get_paypal_client()
+        
+        # Verify webhook event
         event_body = request.get_json()
         event_type = event_body.get('event_type')
         
         # Handle the event
-        if event_type == 'PAYMENT.CAPTURE.COMPLETED':
+        if event_type == 'CHECKOUT.ORDER.APPROVED':
             resource = event_body.get('resource', {})
-            custom_id = resource.get('custom_id')  # This would be our order ID
+            custom_id = None
+            
+            # Extract custom_id from purchase units
+            purchase_units = resource.get('purchase_units', [])
+            if purchase_units:
+                custom_id = purchase_units[0].get('custom_id')
             
             if custom_id:
                 OrderService.update_payment_status(
@@ -42,7 +44,8 @@ def paypal_webhook():
                 
         elif event_type == 'PAYMENT.CAPTURE.DENIED':
             resource = event_body.get('resource', {})
-            custom_id = resource.get('custom_id')
+            purchase_units = resource.get('purchase_units', [])
+            custom_id = purchase_units[0].get('custom_id') if purchase_units else None
             
             if custom_id:
                 OrderService.update_payment_status(
@@ -53,7 +56,8 @@ def paypal_webhook():
                 
         elif event_type == 'PAYMENT.CAPTURE.REFUNDED':
             resource = event_body.get('resource', {})
-            custom_id = resource.get('custom_id')
+            purchase_units = resource.get('purchase_units', [])
+            custom_id = purchase_units[0].get('custom_id') if purchase_units else None
             
             if custom_id:
                 OrderService.update_payment_status(
