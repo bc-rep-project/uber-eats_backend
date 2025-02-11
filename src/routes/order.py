@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models.order import Order, OrderStatus, PaymentStatus
-from middleware.auth_middleware import require_auth
+from middleware.auth_middleware import token_required
 from config.database import db
 from bson import ObjectId
 from datetime import datetime
@@ -8,7 +8,7 @@ from datetime import datetime
 order = Blueprint('order', __name__)
 
 @order.route('/api/orders', methods=['POST'])
-@require_auth
+@token_required
 def create_order(current_user):
     """Create a new order"""
     try:
@@ -42,7 +42,7 @@ def create_order(current_user):
         return jsonify({'error': str(e)}), 400
 
 @order.route('/api/orders/<order_id>', methods=['GET'])
-@require_auth
+@token_required
 def get_order(current_user, order_id):
     """Get order details"""
     try:
@@ -60,7 +60,7 @@ def get_order(current_user, order_id):
         return jsonify({'error': str(e)}), 400
 
 @order.route('/api/orders/<order_id>/status', methods=['PUT'])
-@require_auth
+@token_required
 def update_order_status(current_user, order_id):
     """Update order status"""
     try:
@@ -103,7 +103,7 @@ def update_order_status(current_user, order_id):
         return jsonify({'error': str(e)}), 400
 
 @order.route('/api/orders/<order_id>/payment', methods=['PUT'])
-@require_auth
+@token_required
 def update_payment_status(current_user, order_id):
     """Update order payment status"""
     try:
@@ -141,7 +141,7 @@ def update_payment_status(current_user, order_id):
         return jsonify({'error': str(e)}), 400
 
 @order.route('/api/orders', methods=['GET'])
-@require_auth
+@token_required
 def list_orders(current_user):
     """List orders with filtering options"""
     try:

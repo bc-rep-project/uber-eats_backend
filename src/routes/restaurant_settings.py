@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
+from middleware.auth_middleware import token_required, admin_required
 from models.tax_rule import TaxRule
-from middleware.auth import require_auth, require_restaurant_owner
 from config.database import db
 from bson import ObjectId
 from datetime import datetime
@@ -8,8 +8,7 @@ from datetime import datetime
 restaurant_settings = Blueprint('restaurant_settings', __name__)
 
 @restaurant_settings.route('/api/restaurant/settings/tax-rules', methods=['GET'])
-@require_auth
-@require_restaurant_owner
+@token_required
 def get_tax_rules(current_user):
     """Get all tax rules for a restaurant"""
     try:
@@ -23,8 +22,7 @@ def get_tax_rules(current_user):
         return jsonify({'error': str(e)}), 500
 
 @restaurant_settings.route('/api/restaurant/settings/tax-rules', methods=['POST'])
-@require_auth
-@require_restaurant_owner
+@token_required
 def create_tax_rule(current_user):
     """Create a new tax rule"""
     try:
@@ -52,8 +50,7 @@ def create_tax_rule(current_user):
         return jsonify({'error': str(e)}), 500
 
 @restaurant_settings.route('/api/restaurant/settings/tax-rules/<rule_id>', methods=['PUT'])
-@require_auth
-@require_restaurant_owner
+@token_required
 def update_tax_rule(current_user, rule_id):
     """Update an existing tax rule"""
     try:
@@ -92,8 +89,7 @@ def update_tax_rule(current_user, rule_id):
         return jsonify({'error': str(e)}), 500
 
 @restaurant_settings.route('/api/restaurant/settings/tax-rules/<rule_id>', methods=['DELETE'])
-@require_auth
-@require_restaurant_owner
+@token_required
 def delete_tax_rule(current_user, rule_id):
     """Delete a tax rule"""
     try:
