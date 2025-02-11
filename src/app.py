@@ -29,7 +29,7 @@ def create_app():
     app.register_blueprint(webhook)
     
     # Initialize database
-    db.init_db()
+    db.connect()
 
     # Validate Stripe configuration
     validate_stripe_config()
