@@ -3,9 +3,8 @@ from typing import List, Optional
 from models.order import Order, OrderStatus, PaymentStatus
 from models.restaurant import Restaurant
 from config.database import db
-from config.paypal import get_paypal_client
-from paypalcheckoutsdk.orders import OrdersCreateRequest, OrdersCaptureRequest
-from paypalcheckoutsdk.payments import CapturesRefundRequest
+from config.paypal import configure_paypal
+import paypalrestsdk
 from bson import ObjectId
 
 class OrderService:
@@ -92,47 +91,39 @@ class OrderService:
         # Process payment if not cash
         if order_data['payment_method'] != 'cash':
             try:
-                # Create PayPal order
-                paypal_client = get_paypal_client()
-                request = OrdersCreateRequest()
-                request.prefer('return=representation')
+                # Configure PayPal
+                configure_paypal()
                 
-                request.request_body({
-                    "intent": "CAPTURE",
-                    "purchase_units": [{
+                # Create PayPal payment
+                payment = paypalrestsdk.Payment({
+                    "intent": "sale",
+                    "payer": {
+                        "payment_method": "paypal"
+                    },
+                    "transactions": [{
                         "amount": {
-                            "currency_code": "USD",
-                            "value": str(payment_info['total']),
-                            "breakdown": {
-                                "item_total": {
-                                    "currency_code": "USD",
-                                    "value": str(payment_info['subtotal'])
-                                },
-                                "tax_total": {
-                                    "currency_code": "USD",
-                                    "value": str(payment_info['tax'])
-                                },
-                                "shipping": {
-                                    "currency_code": "USD",
-                                    "value": str(payment_info['delivery_fee'])
-                                },
-                                "handling": {
-                                    "currency_code": "USD",
-                                    "value": str(payment_info['service_fee'])
-                                }
+                            "total": str(payment_info['total']),
+                            "currency": "USD",
+                            "details": {
+                                "subtotal": str(payment_info['subtotal']),
+                                "tax": str(payment_info['tax']),
+                                "shipping": str(payment_info['delivery_fee']),
+                                "handling_fee": str(payment_info['service_fee'])
                             }
                         },
-                        "custom_id": str(order.id),
-                        "description": f"Order from {restaurant['name']}"
+                        "description": f"Order from {restaurant['name']}",
+                        "custom": str(order.id)  # Store our order ID
                     }],
-                    "application_context": {
+                    "redirect_urls": {
                         "return_url": "http://localhost:3000/order/success",
                         "cancel_url": "http://localhost:3000/order/cancel"
                     }
                 })
 
-                response = paypal_client.execute(request)
-                order.payment_info.transaction_id = response.result.id
+                if payment.create():
+                    order.payment_info.transaction_id = payment.id
+                else:
+                    raise ValueError(payment.error)
                     
             except Exception as e:
                 raise ValueError(f"Payment processing failed: {str(e)}")
@@ -257,27 +248,26 @@ class OrderService:
         # Process refund if payment was completed
         if order['payment_info']['status'] == PaymentStatus.COMPLETED.value:
             try:
-                # Create PayPal refund
-                paypal_client = get_paypal_client()
-                request = CapturesRefundRequest(order['payment_info']['transaction_id'])
-                request.prefer('return=representation')
+                # Configure PayPal
+                configure_paypal()
                 
-                request.request_body({
+                # Create refund
+                sale = paypalrestsdk.Sale.find(order['payment_info']['transaction_id'])
+                refund = sale.refund({
                     "amount": {
-                        "value": str(order['payment_info']['total']),
-                        "currency_code": "USD"
+                        "total": str(order['payment_info']['total']),
+                        "currency": "USD"
                     }
                 })
                 
-                response = paypal_client.execute(request)
-                if response.status_code == 201:  # Created
+                if refund.success():
                     # Update payment status
                     db.get_db().orders.update_one(
                         {'_id': ObjectId(order_id)},
                         {'$set': {'payment_info.status': PaymentStatus.REFUNDED.value}}
                     )
                 else:
-                    raise ValueError("Refund request failed")
+                    raise ValueError(refund.error)
                     
             except Exception as e:
                 raise ValueError(f"Refund failed: {str(e)}")

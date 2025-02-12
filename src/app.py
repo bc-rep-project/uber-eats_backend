@@ -7,7 +7,7 @@ from routes.order import order
 from routes.webhook import webhook
 from services.notification_service import socketio
 from config.database import db
-from config.stripe import validate_stripe_config
+from config.paypal import configure_paypal, validate_paypal_config
 
 # Load environment variables
 load_dotenv()
@@ -31,8 +31,9 @@ def create_app():
     # Initialize database
     db.connect()
 
-    # Validate Stripe configuration
-    validate_stripe_config()
+    # Configure PayPal
+    configure_paypal()
+    validate_paypal_config()
 
     # Initialize SocketIO
     socketio.init_app(app, cors_allowed_origins="*")
