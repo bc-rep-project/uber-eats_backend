@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+import certifi
 
 # Load environment variables
 load_dotenv()
@@ -15,9 +16,23 @@ class Database:
             # Get MongoDB URI from environment variables or use default
             mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/ubereats')
             
-            # Connect to MongoDB
-            self.client = MongoClient(mongo_uri)
-            self.db = self.client.get_database('ubereats')
+            # Connect to MongoDB with SSL configuration
+            if 'mongodb+srv' in mongo_uri:
+                # Atlas connection with SSL
+                self.client = MongoClient(
+                    mongo_uri,
+                    tls=True,
+                    tlsCAFile=certifi.where(),
+                    retryWrites=True,
+                    w='majority'
+                )
+            else:
+                # Local connection
+                self.client = MongoClient(mongo_uri)
+            
+            # Get database name from URI or use default
+            db_name = os.getenv('MONGODB_NAME', 'ubereats')
+            self.db = self.client.get_database(db_name)
             
             # Test connection
             self.client.server_info()
