@@ -1,5 +1,5 @@
 import os
-from paypalcheckoutsdk.core import PayPalHttpClient, SandboxEnvironment, LiveEnvironment
+import paypalrestsdk
 
 # PayPal configuration
 paypal_keys = {
@@ -9,19 +9,13 @@ paypal_keys = {
     'webhook_id': os.getenv('PAYPAL_WEBHOOK_ID', 'your_paypal_webhook_id')
 }
 
-def get_paypal_client():
-    """Get PayPal HTTP client based on environment"""
-    if paypal_keys['mode'] == 'sandbox':
-        environment = SandboxEnvironment(
-            client_id=paypal_keys['client_id'],
-            client_secret=paypal_keys['client_secret']
-        )
-    else:
-        environment = LiveEnvironment(
-            client_id=paypal_keys['client_id'],
-            client_secret=paypal_keys['client_secret']
-        )
-    return PayPalHttpClient(environment)
+def configure_paypal():
+    """Configure PayPal SDK"""
+    paypalrestsdk.configure({
+        'mode': paypal_keys['mode'],
+        'client_id': paypal_keys['client_id'],
+        'client_secret': paypal_keys['client_secret']
+    })
 
 def validate_paypal_config():
     """Validate PayPal configuration"""

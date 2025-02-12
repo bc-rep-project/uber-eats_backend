@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
-from paypalcheckoutsdk.core import PayPalHttpClient
-from config.paypal import get_paypal_client, paypal_keys
+import paypalrestsdk
+from config.paypal import paypal_keys
 from services.order_service import OrderService
 from models.order import PaymentStatus
 
@@ -9,59 +9,42 @@ webhook = Blueprint('webhook', __name__)
 @webhook.route('/api/webhook/paypal', methods=['POST'])
 def paypal_webhook():
     """Handle PayPal webhook events"""
-    auth_algo = request.headers.get('PAYPAL-AUTH-ALGO')
-    cert_url = request.headers.get('PAYPAL-CERT-URL')
-    transmission_id = request.headers.get('PAYPAL-TRANSMISSION-ID')
-    transmission_sig = request.headers.get('PAYPAL-TRANSMISSION-SIG')
-    transmission_time = request.headers.get('PAYPAL-TRANSMISSION-TIME')
-    webhook_id = paypal_keys['webhook_id']
-    
-    # Verify webhook signature
     try:
-        # Get PayPal client
-        client = get_paypal_client()
-        
-        # Verify webhook event
+        # Verify webhook signature
+        webhook_id = paypal_keys['webhook_id']
         event_body = request.get_json()
         event_type = event_body.get('event_type')
         
         # Handle the event
-        if event_type == 'CHECKOUT.ORDER.APPROVED':
+        if event_type == 'PAYMENT.SALE.COMPLETED':
             resource = event_body.get('resource', {})
-            custom_id = None
+            custom = resource.get('custom', '')  # This contains our order ID
             
-            # Extract custom_id from purchase units
-            purchase_units = resource.get('purchase_units', [])
-            if purchase_units:
-                custom_id = purchase_units[0].get('custom_id')
-            
-            if custom_id:
+            if custom:
                 OrderService.update_payment_status(
-                    order_id=custom_id,
+                    order_id=custom,
                     payment_status=PaymentStatus.COMPLETED,
                     transaction_id=resource.get('id')
                 )
                 
-        elif event_type == 'PAYMENT.CAPTURE.DENIED':
+        elif event_type == 'PAYMENT.SALE.DENIED':
             resource = event_body.get('resource', {})
-            purchase_units = resource.get('purchase_units', [])
-            custom_id = purchase_units[0].get('custom_id') if purchase_units else None
+            custom = resource.get('custom', '')
             
-            if custom_id:
+            if custom:
                 OrderService.update_payment_status(
-                    order_id=custom_id,
+                    order_id=custom,
                     payment_status=PaymentStatus.FAILED,
                     transaction_id=resource.get('id')
                 )
                 
-        elif event_type == 'PAYMENT.CAPTURE.REFUNDED':
+        elif event_type == 'PAYMENT.SALE.REFUNDED':
             resource = event_body.get('resource', {})
-            purchase_units = resource.get('purchase_units', [])
-            custom_id = purchase_units[0].get('custom_id') if purchase_units else None
+            custom = resource.get('custom', '')
             
-            if custom_id:
+            if custom:
                 OrderService.update_payment_status(
-                    order_id=custom_id,
+                    order_id=custom,
                     payment_status=PaymentStatus.REFUNDED,
                     transaction_id=resource.get('id')
                 )
