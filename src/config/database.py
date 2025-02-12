@@ -1,7 +1,9 @@
 from pymongo import MongoClient
+from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 import certifi
+import ssl
 
 # Load environment variables
 load_dotenv()
@@ -21,10 +23,15 @@ class Database:
                 # Atlas connection with SSL
                 self.client = MongoClient(
                     mongo_uri,
+                    server_api=ServerApi('1'),  # Use stable API
                     tls=True,
                     tlsCAFile=certifi.where(),
+                    ssl_cert_reqs=ssl.CERT_REQUIRED,
                     retryWrites=True,
-                    w='majority'
+                    w='majority',
+                    connectTimeoutMS=30000,
+                    socketTimeoutMS=30000,
+                    serverSelectionTimeoutMS=30000
                 )
             else:
                 # Local connection
@@ -35,11 +42,16 @@ class Database:
             self.db = self.client.get_database(db_name)
             
             # Test connection
-            self.client.server_info()
+            self.client.admin.command('ping')
             print("Successfully connected to MongoDB")
             
         except Exception as e:
             print(f"Error connecting to MongoDB: {str(e)}")
+            if 'mongodb+srv' in mongo_uri:
+                print("Connection Details:")
+                print(f"Using TLS: True")
+                print(f"CA File: {certifi.where()}")
+                print(f"SSL Cert Reqs: {ssl.CERT_REQUIRED}")
             raise e
     
     def get_db(self):
