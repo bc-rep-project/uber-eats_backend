@@ -3,7 +3,6 @@ from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 import certifi
-import ssl
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +35,6 @@ class Database:
                     serverSelectionTimeoutMS=30000,
                     retryWrites=True,
                     w='majority',
-                    ssl_cert_reqs=ssl.CERT_REQUIRED,
                     connect=True,
                     minPoolSize=0
                 )
@@ -65,7 +63,8 @@ class Database:
                 print("1. MongoDB Atlas connection string is correct")
                 print("2. Network access is configured for your IP")
                 print("3. Database user has correct permissions")
-                print("4. SSL/TLS configuration is properly set")
+                print("4. TLS/SSL is enabled in your MongoDB Atlas cluster")
+                print("5. Your connection string includes all required parameters")
             raise e
     
     def get_db(self):
