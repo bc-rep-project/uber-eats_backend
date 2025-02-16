@@ -1,52 +1,41 @@
 from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
 from werkzeug.security import generate_password_hash, check_password_hash
 from config.database import db
 
-class User:
-    def __init__(self, email, password, first_name, last_name, phone_number=None):
-        self.email = email.lower()
-        self.password_hash = generate_password_hash(password)
-        self.first_name = first_name
-        self.last_name = last_name
-        self.phone_number = phone_number
-        self.created_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
-        self.is_active = True
-        self.is_verified = False
-        self.role = "customer"
-        self.preferences = {
-            "notifications": True,
-            "language": "en",
-            "dark_mode": False
+class User(BaseModel):
+    id: str = Field(default_factory=lambda: str(ObjectId()), alias="_id")
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    phone_number: Optional[str] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_verified: bool = False
+    role: str = "customer"
+    preferences: dict = {
+        "notifications": True,
+        "language": "en",
+        "dark_mode": False
+    }
+    saved_addresses: list = []
+    payment_methods: list = []
+
+    class Config:
+        populate_by_name = True
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "password": "hashedpassword",
+                "first_name": "John",
+                "last_name": "Doe",
+                "phone_number": "+1234567890"
+            }
         }
-        self.saved_addresses = []
-        self.payment_methods = []
-
-    @staticmethod
-    def create(email, password, first_name, last_name, phone_number=None):
-        # Check if user already exists
-        if db.get_db().users.find_one({"email": email.lower()}):
-            raise ValueError("User with this email already exists")
-
-        user = User(email, password, first_name, last_name, phone_number)
-        result = db.get_db().users.insert_one(user.to_dict())
-        user._id = result.inserted_id
-        return user
-
-    @staticmethod
-    def get_by_email(email):
-        user_data = db.get_db().users.find_one({"email": email.lower()})
-        if user_data:
-            return User.from_dict(user_data)
-        return None
-
-    @staticmethod
-    def get_by_id(user_id):
-        user_data = db.get_db().users.find_one({"_id": ObjectId(user_id)})
-        if user_data:
-            return User.from_dict(user_data)
-        return None
 
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
@@ -110,6 +99,31 @@ class User:
             "saved_addresses": self.saved_addresses,
             "payment_methods": self.payment_methods
         }
+
+    @staticmethod
+    def create(email, password, first_name, last_name, phone_number=None):
+        # Check if user already exists
+        if db.get_db().users.find_one({"email": email.lower()}):
+            raise ValueError("User with this email already exists")
+
+        user = User(email, password, first_name, last_name, phone_number)
+        result = db.get_db().users.insert_one(user.to_dict())
+        user._id = result.inserted_id
+        return user
+
+    @staticmethod
+    def get_by_email(email):
+        user_data = db.get_db().users.find_one({"email": email.lower()})
+        if user_data:
+            return User.from_dict(user_data)
+        return None
+
+    @staticmethod
+    def get_by_id(user_id):
+        user_data = db.get_db().users.find_one({"_id": ObjectId(user_id)})
+        if user_data:
+            return User.from_dict(user_data)
+        return None
 
     @staticmethod
     def from_dict(data):

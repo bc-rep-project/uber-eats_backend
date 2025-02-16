@@ -6,6 +6,10 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
 
+from .database import db
+from ..controllers.auth_controller import auth
+from ..controllers.restaurant_controller import restaurant
+
 # Load environment variables
 load_dotenv()
 
@@ -20,18 +24,33 @@ def create_app():
     app.config['MONGO_URI'] = os.getenv('MONGO_URI')
     
     # Initialize extensions
-    CORS(app, resources={r"/api/*": {"origins": os.getenv('CORS_ORIGINS', '*')}})
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": os.getenv('CORS_ORIGIN', '*'),
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
     jwt = JWTManager(app)
     socketio = SocketIO(app, cors_allowed_origins="*")
     
     # Initialize MongoDB
     mongo = MongoClient(app.config['MONGO_URI'])
-    db = mongo[os.getenv('MONGO_DB_NAME', 'ubereats')]
+    db.connect()
+    
+    # Register blueprints
+    app.register_blueprint(auth, url_prefix='/api/auth')
+    app.register_blueprint(restaurant, url_prefix='/api/restaurants')
+    
+    # Health check endpoint
+    @app.route('/health')
+    def health_check():
+        return {'status': 'healthy'}, 200
     
     # Make db available to all requests
     @app.before_request
     def before_request():
-        app.db = db
+        app.db = mongo[os.getenv('MONGO_DB_NAME', 'ubereats')]
     
     # Register error handlers
     from ..middleware.error_handlers import register_error_handlers

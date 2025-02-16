@@ -1,7 +1,12 @@
 from functools import wraps
-from flask import request, current_app, g
+from flask import request, current_app, g, jsonify
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
 from .error_handlers import BusinessError
+import jwt
+import os
+from bson import ObjectId
+
+from ..config.database import db
 
 def auth_required(roles=None):
     """
@@ -82,4 +87,37 @@ def init_auth_middleware(app):
                 message='Missing authentication token',
                 code='AUTH_MISSING_TOKEN',
                 status_code=401
-            ) 
+            )
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        
+        # Get token from header
+        if 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            try:
+                token = auth_header.split(" ")[1]
+            except IndexError:
+                return jsonify({'message': 'Invalid token format'}), 401
+                
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+            
+        try:
+            # Decode token
+            data = jwt.decode(token, os.getenv('JWT_SECRET'), algorithms=["HS256"])
+            current_user = db.users.find_one({'_id': ObjectId(data['user_id'])})
+            
+            if not current_user:
+                return jsonify({'message': 'Invalid token'}), 401
+                
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token has expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'message': 'Invalid token'}), 401
+            
+        return f(current_user, *args, **kwargs)
+        
+    return decorated 

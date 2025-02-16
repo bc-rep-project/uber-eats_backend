@@ -50,6 +50,10 @@ class Database:
             self.db.list_collection_names()
             print("Successfully connected to MongoDB")
             print(f"Connected to database: {db_name}")
+
+            # Create indexes
+            self._create_indexes()
+            print("Database indexes created successfully")
             
         except Exception as e:
             print(f"Error connecting to MongoDB: {str(e)}")
@@ -65,6 +69,33 @@ class Database:
                 print("3. Database user has correct permissions")
                 print("4. TLS/SSL is enabled in your MongoDB Atlas cluster")
                 print("5. Your connection string includes all required parameters")
+            raise e
+
+    def _create_indexes(self):
+        """Create required database indexes"""
+        try:
+            # User email index
+            self.db.users.create_index('email', unique=True)
+            
+            # Restaurant likes compound index
+            self.db.restaurant_likes.create_index(
+                [('user_id', ASCENDING), ('restaurant_id', ASCENDING)],
+                unique=True
+            )
+            
+            # Restaurant ratings compound index
+            self.db.restaurant_ratings.create_index(
+                [('user_id', ASCENDING), ('restaurant_id', ASCENDING)],
+                unique=True
+            )
+            
+            print("Created indexes for:")
+            print("- users.email (unique)")
+            print("- restaurant_likes.user_id + restaurant_id (unique)")
+            print("- restaurant_ratings.user_id + restaurant_id (unique)")
+            
+        except Exception as e:
+            print(f"Error creating indexes: {str(e)}")
             raise e
     
     def get_db(self):
