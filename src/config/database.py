@@ -1,9 +1,10 @@
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 import certifi
 import ssl
+import urllib.parse
 
 # Load environment variables
 load_dotenv()
@@ -25,18 +26,28 @@ class Database:
             
             # Connect to MongoDB with SSL configuration
             if 'mongodb+srv' in mongo_uri:
+                # Parse the URI to add additional options
+                if '?' in mongo_uri:
+                    mongo_uri += '&'
+                else:
+                    mongo_uri += '?'
+                mongo_uri += urllib.parse.urlencode({
+                    'tls': 'true',
+                    'tlsAllowInvalidCertificates': 'true',
+                    'retryWrites': 'true',
+                    'w': 'majority'
+                })
+                
                 # Atlas connection with SSL
                 self.client = MongoClient(
                     mongo_uri,
                     server_api=ServerApi('1'),
                     tlsCAFile=certifi.where(),
-                    tls=True,
-                    tlsAllowInvalidCertificates=True,  # Temporarily allow invalid certs for debugging
-                    retryWrites=True,
                     connectTimeoutMS=30000,
                     socketTimeoutMS=30000,
                     serverSelectionTimeoutMS=30000,
-                    w='majority'
+                    connect=True,
+                    minPoolSize=0
                 )
             else:
                 # Local connection
@@ -46,14 +57,13 @@ class Database:
             db_name = os.getenv('MONGODB_NAME', 'ubereats')
             self.db = self.client.get_database(db_name)
             
-            # Test connection
-            self.client.admin.command('ping')
+            # Test connection with a simple operation instead of ping
+            self.db.list_collection_names()
             print("Successfully connected to MongoDB")
             
             # Print connection details for debugging
-            server_info = self.client.server_info()
-            print(f"Connected to MongoDB version: {server_info.get('version', 'unknown')}")
-            print(f"Server connection parameters: {self.client.options}")
+            print(f"Connected to database: {db_name}")
+            print(f"Available collections: {', '.join(self.db.list_collection_names())}")
             
         except Exception as e:
             print(f"Error connecting to MongoDB: {str(e)}")
@@ -63,6 +73,7 @@ class Database:
                 print(f"MongoDB URI format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority")
                 print(f"Certifi Version: {certifi.__version__}")
                 print(f"SSL Version: {ssl.OPENSSL_VERSION}")
+                print(f"Connection options being used: tls=true, retryWrites=true, w=majority")
             raise e
     
     def get_db(self):
