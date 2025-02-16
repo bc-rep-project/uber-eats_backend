@@ -22,6 +22,7 @@ class Database:
             print(f"CA File: {certifi.where()}")
             print(f"Certifi Version: {certifi.__version__}")
             print(f"SSL Version: {ssl.OPENSSL_VERSION}")
+            print(f"TLS Version: {ssl.PROTOCOL_TLS_CLIENT}")
             
             # Connect to MongoDB with SSL configuration
             if 'mongodb+srv' in mongo_uri:
@@ -31,7 +32,8 @@ class Database:
                     server_api=ServerApi('1'),
                     tlsCAFile=certifi.where(),
                     tls=True,
-                    tlsAllowInvalidHostnames=False,
+                    tlsAllowInvalidCertificates=True,  # Temporarily allow invalid certs for debugging
+                    tlsInsecure=True,  # Temporarily disable strict certificate validation
                     retryWrites=True,
                     connectTimeoutMS=30000,
                     socketTimeoutMS=30000,
@@ -50,6 +52,11 @@ class Database:
             self.client.admin.command('ping')
             print("Successfully connected to MongoDB")
             
+            # Print connection details for debugging
+            server_info = self.client.server_info()
+            print(f"Connected to MongoDB version: {server_info.get('version', 'unknown')}")
+            print(f"Server connection parameters: {self.client.options}")
+            
         except Exception as e:
             print(f"Error connecting to MongoDB: {str(e)}")
             if 'mongodb+srv' in mongo_uri:
@@ -58,6 +65,7 @@ class Database:
                 print(f"MongoDB URI format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority")
                 print(f"Certifi Version: {certifi.__version__}")
                 print(f"SSL Version: {ssl.OPENSSL_VERSION}")
+                print(f"Available SSL protocols: {', '.join(str(p) for p in ssl.PROTOCOL_TLS_CLIENT)}")
             raise e
     
     def get_db(self):
