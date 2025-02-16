@@ -3,6 +3,7 @@ from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 import certifi
+import ssl
 
 # Load environment variables
 load_dotenv()
@@ -17,19 +18,27 @@ class Database:
             # Get MongoDB URI from environment variables or use default
             mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/ubereats')
             
+            # Print debug information
+            print(f"CA File: {certifi.where()}")
+            print(f"Certifi Version: {certifi.__version__}")
+            print(f"SSL Version: {ssl.OPENSSL_VERSION}")
+            
             # Connect to MongoDB with SSL configuration
             if 'mongodb+srv' in mongo_uri:
                 # Atlas connection with SSL
                 self.client = MongoClient(
                     mongo_uri,
-                    server_api=ServerApi('1'),  # Use stable API
+                    server_api=ServerApi('1'),
                     tlsCAFile=certifi.where(),
                     tls=True,
+                    tlsAllowInvalidCertificates=False,
                     retryWrites=True,
                     connectTimeoutMS=30000,
                     socketTimeoutMS=30000,
                     serverSelectionTimeoutMS=30000,
-                    w='majority'
+                    w='majority',
+                    ssl_cert_reqs=ssl.CERT_REQUIRED,
+                    ssl_match_hostname=True
                 )
             else:
                 # Local connection
@@ -50,6 +59,7 @@ class Database:
                 print(f"CA File: {certifi.where()}")
                 print(f"MongoDB URI format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority")
                 print(f"Certifi Version: {certifi.__version__}")
+                print(f"SSL Version: {ssl.OPENSSL_VERSION}")
             raise e
     
     def get_db(self):
