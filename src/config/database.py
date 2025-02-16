@@ -3,7 +3,6 @@ from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 import certifi
-import ssl
 
 # Load environment variables
 load_dotenv()
@@ -25,8 +24,7 @@ class Database:
                     mongo_uri,
                     server_api=ServerApi('1'),  # Use stable API
                     tlsCAFile=certifi.where(),
-                    ssl=True,
-                    ssl_cert_reqs=ssl.CERT_REQUIRED,
+                    tls=True,
                     retryWrites=True,
                     connectTimeoutMS=30000,
                     socketTimeoutMS=30000,
@@ -51,7 +49,6 @@ class Database:
                 print("Connection Details:")
                 print(f"CA File: {certifi.where()}")
                 print(f"MongoDB URI format: mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority")
-                print(f"SSL Version: {ssl.OPENSSL_VERSION}")
                 print(f"Certifi Version: {certifi.__version__}")
             raise e
     
