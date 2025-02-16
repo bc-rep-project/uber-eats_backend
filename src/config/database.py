@@ -31,14 +31,12 @@ class Database:
                     server_api=ServerApi('1'),
                     tlsCAFile=certifi.where(),
                     tls=True,
-                    tlsAllowInvalidCertificates=False,
+                    tlsAllowInvalidHostnames=False,
                     retryWrites=True,
                     connectTimeoutMS=30000,
                     socketTimeoutMS=30000,
                     serverSelectionTimeoutMS=30000,
-                    w='majority',
-                    ssl_cert_reqs=ssl.CERT_REQUIRED,
-                    ssl_match_hostname=True
+                    w='majority'
                 )
             else:
                 # Local connection
