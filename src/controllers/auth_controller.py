@@ -82,6 +82,21 @@ def login():
     except Exception as e:
         return jsonify({'message': str(e)}), 400
 
+@auth.route('/refresh', methods=['POST'])
+@token_required
+def refresh_token(current_user):
+    try:
+        # Generate new token
+        token = jwt.encode({
+            'user_id': str(current_user['_id']),
+            'exp': datetime.utcnow() + timedelta(days=1)
+        }, os.getenv('JWT_SECRET'))
+        
+        return jsonify({'token': token}), 200
+        
+    except Exception as e:
+        return jsonify({'message': str(e)}), 400
+
 @auth.route('/logout', methods=['POST'])
 @token_required
 def logout(current_user):
