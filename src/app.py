@@ -8,7 +8,7 @@ from routes.webhook import webhook
 from services.notification_service import socketio
 from config.database import db, init_db
 from config.paypal import configure_paypal, validate_paypal_config
-from routes.auth import auth
+from config.environment import validate_environment
 from routes.restaurant_settings import restaurant_settings
 from controllers.grocery_controller import grocery
 
@@ -17,6 +17,9 @@ load_dotenv()
 
 def create_app():
     """Create and configure the Flask application"""
+    # Validate environment variables first
+    validate_environment()
+    
     app = Flask(__name__)
     
     # Enable CORS
