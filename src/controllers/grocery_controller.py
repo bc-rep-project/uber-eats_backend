@@ -2,9 +2,9 @@ from flask import Blueprint, request, jsonify
 from bson import ObjectId
 from datetime import datetime
 
-from ..config.database import db
-from ..middleware.auth import token_required
-from ..models.grocery_store import GroceryStore, GroceryProduct, GroceryCategory
+from src.config.database import db
+from src.middleware.auth import token_required
+from src.models.grocery_store import GroceryStore, GroceryProduct, GroceryCategory
 
 grocery = Blueprint('grocery', __name__)
 
