@@ -2,6 +2,15 @@ from flask import jsonify
 from werkzeug.exceptions import HTTPException
 from jwt.exceptions import PyJWTError
 
+# Custom business logic errors
+class BusinessError(Exception):
+    def __init__(self, message, code, status_code=400, details=None):
+        super().__init__()
+        self.message = message
+        self.code = code
+        self.status_code = status_code
+        self.details = details
+
 def register_error_handlers(app):
     @app.errorhandler(400)
     def bad_request(error):
@@ -69,21 +78,10 @@ def register_error_handlers(app):
             'details': str(error) if app.debug else 'An unexpected error occurred'
         }), 500
 
-    # Custom business logic errors
-    class BusinessError(Exception):
-        def __init__(self, message, code, status_code=400, details=None):
-            super().__init__()
-            self.message = message
-            self.code = code
-            self.status_code = status_code
-            self.details = details
-
     @app.errorhandler(BusinessError)
     def handle_business_error(error):
         return jsonify({
             'message': error.message,
             'code': error.code,
             'details': error.details
-        }), error.status_code
-
-    return BusinessError  # Return the BusinessError class for use in routes 
+        }), error.status_code 
