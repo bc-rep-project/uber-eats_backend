@@ -26,15 +26,16 @@ def create_app():
     app.config['MONGO_URI'] = os.getenv('MONGO_URI', 'mongodb://localhost:27017/ubereats')
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
     
+    # Initialize database
+    if not init_db():
+        raise RuntimeError("Failed to initialize database connection")
+    
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(order, url_prefix='/api')
     app.register_blueprint(webhook)
     app.register_blueprint(restaurant_settings, url_prefix='/api')
     app.register_blueprint(grocery, url_prefix='/api/grocery')
-    
-    # Initialize database
-    init_db()
 
     # Configure PayPal
     configure_paypal()

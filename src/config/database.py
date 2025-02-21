@@ -3,6 +3,7 @@ from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 import certifi
+from .indexes import setup_indexes
 
 # Load environment variables
 load_dotenv()
@@ -74,26 +75,8 @@ class Database:
     def _create_indexes(self):
         """Create required database indexes"""
         try:
-            # User email index
-            self.db.users.create_index('email', unique=True)
-            
-            # Restaurant likes compound index
-            self.db.restaurant_likes.create_index(
-                [('user_id', ASCENDING), ('restaurant_id', ASCENDING)],
-                unique=True
-            )
-            
-            # Restaurant ratings compound index
-            self.db.restaurant_ratings.create_index(
-                [('user_id', ASCENDING), ('restaurant_id', ASCENDING)],
-                unique=True
-            )
-            
-            print("Created indexes for:")
-            print("- users.email (unique)")
-            print("- restaurant_likes.user_id + restaurant_id (unique)")
-            print("- restaurant_ratings.user_id + restaurant_id (unique)")
-            
+            # Set up all indexes using the indexes module
+            setup_indexes(self.db)
         except Exception as e:
             print(f"Error creating indexes: {str(e)}")
             raise e
@@ -109,4 +92,14 @@ class Database:
             print("MongoDB connection closed")
 
 # Create a singleton instance
-db = Database() 
+db = Database()
+
+def init_db():
+    """Initialize database connection and setup"""
+    try:
+        print("Initializing database connection...")
+        db.connect()
+        return True
+    except Exception as e:
+        print(f"Failed to initialize database: {str(e)}")
+        return False 
