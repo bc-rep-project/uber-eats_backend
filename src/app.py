@@ -6,8 +6,11 @@ from routes.auth_routes import auth_bp
 from routes.order import order
 from routes.webhook import webhook
 from services.notification_service import socketio
-from config.database import db
+from config.database import db, init_db
 from config.paypal import configure_paypal, validate_paypal_config
+from routes.auth import auth
+from routes.restaurant_settings import restaurant_settings
+from controllers.grocery_controller import grocery
 
 # Load environment variables
 load_dotenv()
@@ -25,11 +28,13 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(order)
+    app.register_blueprint(order, url_prefix='/api')
     app.register_blueprint(webhook)
+    app.register_blueprint(restaurant_settings, url_prefix='/api')
+    app.register_blueprint(grocery, url_prefix='/api/grocery')
     
     # Initialize database
-    db.connect()
+    init_db()
 
     # Configure PayPal
     configure_paypal()
@@ -51,6 +56,12 @@ def create_app():
     @app.route('/health')
     def health_check():
         return {'status': 'healthy'}, 200
+    
+    # Add CSP headers
+    @app.after_request
+    def add_security_headers(response):
+        response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:;"
+        return response
     
     return app
 
